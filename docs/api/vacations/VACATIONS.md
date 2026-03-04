@@ -267,6 +267,14 @@ Payload includes vacation core data, period split, substitutes, optional child b
 - Filtering/search behavior: `VacationSpec`, `VacationWorkflowSpec`, service filter methods.
 - Reminder/background behavior: `api/src/main/java/ee/andevis/api/vacation/task/`.
 
+## Before-Start Restriction
+
+When `VACATION_BEFORE_START_RESTRICTION` setting is enabled, vacations with payment type `BEFORE_VACATION` must have a start date at least N days in the future (N = `options.days`, default 14).
+
+- **Create / Update**: checked in `VacationValidationService.validateRequest()`, returns error key `vacationBeforeStartRestriction`.
+- **Delete (cancel)**: checked in `VacationController.delete()` via `checkBeforeStartRestriction()`, returns `400 BAD_REQUEST` with error key `vacationBeforeStartRestriction`.
+- Vacations with any other payment type are not affected.
+
 ## Notable Caveats
 
 - `VacationController.update(...)`: with `vacations:update:own`, non-owner path does not explicitly return forbidden; it can return unchanged entity.

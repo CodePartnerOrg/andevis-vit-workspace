@@ -81,6 +81,7 @@ Current enum:
 - `WITH_WAITING_VACATIONS`
 - `PLANNED_VACATIONS`
 - `MANAGER_CAN_READ_SALARY`
+- `VACATION_BEFORE_START_RESTRICTION`
 
 ## Typed Options Support
 
@@ -99,6 +100,9 @@ Current enum:
 - `isPlannedToActual`
 - `paymentType`
 
+3. `VACATION_BEFORE_START_RESTRICTION` -> `VacationBeforeStartRestrictionOptionDTO`
+- `days` (Integer, default `14`)
+
 For all other keys, `options` is ignored by mapper and DTOs are effectively boolean toggle only.
 
 ## Service Behavior
@@ -108,7 +112,7 @@ For all other keys, `options` is ignored by mapper and DTOs are effectively bool
 - Finds existing setting by `(companyId, key)`.
 - If not found, creates new row.
 - Writes `isEnabled`, `key`, `companyId`.
-- Converts `options` to typed DTO only for `CANDIDATES_MODULE`/`PLANNED_VACATIONS`.
+- Converts `options` to typed DTO only for `CANDIDATES_MODULE`/`PLANNED_VACATIONS`/`VACATION_BEFORE_START_RESTRICTION`.
 - Saves and returns mapped DTO.
 
 ### `get(UUID companyId)`
