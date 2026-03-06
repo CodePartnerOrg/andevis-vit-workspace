@@ -1,0 +1,178 @@
+erDiagram
+
+    %% ─── Central file store ──────────────────────────────────────────────────
+    files {
+        bigint  id           PK "auto-increment surrogate key"
+        varchar uuid         UK "public URL identifier (used as FK target)"
+        varchar file_name       "original filename"
+        varchar file_type       "MIME type"
+        bigint  file_size       "bytes"
+        varchar path            "YYYY/M/D/ relative path under storage root"
+        varchar hash            "SHA-256 of content"
+        varchar access          "public | private"
+        varchar status          "TEMPORARY | ATTACHED"
+        timestamp created_at
+        timestamp deleted_at    "soft-delete; file also removed from disk"
+    }
+
+    %% ─── Domain entities ─────────────────────────────────────────────────────
+    profiles {
+        uuid    id            PK
+        varchar first_name
+        varchar last_name
+        varchar identity_code
+    }
+
+    vacations {
+        uuid    id            PK
+        uuid    profile_id    FK
+        uuid    company_id
+        varchar status
+    }
+
+    scheduled_vacations {
+        uuid    id            PK
+        uuid    profile_id    FK
+        uuid    company_id
+    }
+
+    applications {
+        uuid    id                  PK
+        uuid    profile_id          FK
+        uuid    creator_profile_id  FK
+        uuid    file_id                "→ files.uuid  (generated PDF output)"
+        varchar type_code
+        varchar status
+    }
+
+    application_properties {
+        uuid    id            PK
+        uuid    company_id
+        varchar code
+        varchar title
+    }
+
+    candidates {
+        uuid    id            PK
+        varchar identity_code
+        varchar first_name
+        varchar last_name
+    }
+
+    survey_answers {
+        uuid    id            PK
+        uuid    survey_id     FK
+        uuid    profile_id    FK
+    }
+
+    %% ─── Domain records with a single embedded file reference ────────────────
+    profile_documents {
+        uuid    id            PK
+        uuid    profile_id    FK
+        uuid    file_id          "→ files.uuid (nullable)"
+        varchar type
+        varchar number
+        date    date_of_issue
+        date    validity_date
+        varchar status
+        timestamp deleted_at
+    }
+
+    profile_educations {
+        uuid    id            PK
+        uuid    profile_id    FK
+        uuid    file_id          "→ files.uuid (nullable)"
+        varchar degree
+        varchar institution
+        varchar status
+        timestamp deleted_at
+    }
+
+    profile_health_inspections {
+        uuid    id            PK
+        uuid    profile_id    FK
+        uuid    file_id          "→ files.uuid (nullable)"
+        varchar type
+        varchar invoice_number
+        timestamp deleted_at
+    }
+
+    %% ─── Join tables (pure many-to-file bridges) ─────────────────────────────
+    vacation_files {
+        uuid    id            PK
+        uuid    vacation_id   FK
+        uuid    file_id          "→ files.uuid"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    scheduled_vacation_files {
+        uuid    id                      PK
+        uuid    scheduled_vacation_id      "→ scheduled_vacations.id"
+        uuid    file_id                    "→ files.uuid"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    application_files {
+        uuid    id                PK
+        uuid    application_id      "→ applications.id"
+        varchar component_id        "→ application_property_components.id"
+        uuid    file_id             "→ files.uuid"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    application_property_files {
+        uuid    id                        PK
+        uuid    application_property_id   FK
+        uuid    file_id                      "→ files.uuid"
+        timestamp deleted_at
+    }
+
+    application_creator_files {
+        uuid    id              PK
+        uuid    application_id  FK
+        uuid    file_id            "→ files.uuid"
+        timestamp deleted_at
+    }
+
+    candidate_files {
+        uuid    id              PK
+        uuid    candidate_id    FK "FK declared in DB"
+        uuid    file_id            "→ files.uuid"
+        varchar token              "Dokobit signing session token"
+        timestamp deleted_at
+    }
+
+    survey_answer_files {
+        uuid    id                PK
+        uuid    survey_answer_id  FK "FK declared in DB"
+        uuid    file_id              "→ files.uuid"
+        timestamp deleted_at
+    }
+
+    %% ─── Domain entity → join / embedded table ───────────────────────────────
+    profiles              ||--o{ profile_documents          : "has documents"
+    profiles              ||--o{ profile_educations         : "has educations"
+    profiles              ||--o{ profile_health_inspections : "has health inspections"
+    vacations             ||--o{ vacation_files             : "has attachments"
+    scheduled_vacations   ||--o{ scheduled_vacation_files   : "has attachments"
+    applications          ||--o{ application_files          : "has component files"
+    applications          ||--o{ application_creator_files  : "has creator attachments"
+    application_properties ||--o{ application_property_files : "has template files"
+    candidates            ||--o{ candidate_files            : "has files"
+    survey_answers        ||--o{ survey_answer_files        : "has attachments"
+
+    %% ─── files.uuid references (no DB FK; enforced at app layer) ─────────────
+    files ||--o{ vacation_files             : "uuid ref"
+    files ||--o{ scheduled_vacation_files   : "uuid ref"
+    files ||--o{ application_files          : "uuid ref"
+    files ||--o{ application_property_files : "uuid ref"
+    files ||--o{ application_creator_files  : "uuid ref"
+    files ||--o{ candidate_files            : "uuid ref"
+    files ||--o{ survey_answer_files        : "uuid ref"
+    files |o--o{ profile_documents          : "uuid ref (nullable)"
+    files |o--o{ profile_educations         : "uuid ref (nullable)"
+    files |o--o{ profile_health_inspections : "uuid ref (nullable)"
+    files |o--o{ applications               : "uuid ref (generated PDF)"
