@@ -1,4 +1,4 @@
-# Settings Module (`ee.andevis.api.setting`)
+# Settings Module
 
 ## Purpose
 
@@ -12,16 +12,49 @@ It provides:
 
 ## Package Map
 
+### Core / General Settings (`ee.andevis.api.setting`)
+
 Base path: `api/src/main/java/ee/andevis/api/setting/`
 
-- `SettingController`: `/settings` endpoints.
-- `SettingService`: upsert/read/mapping logic.
+- `SettingController`: `/settings` endpoints (general/core settings).
+- `SettingService`: generic upsert/read/mapping logic — shared by all domain settings.
 - `SettingRepository`: persistence access.
-- `api/src/main/java/ee/andevis/api/setting/entity/Setting.java`: `_settings` table model.
-- `api/src/main/java/ee/andevis/api/setting/entity/SettingKey.java`: enum of supported keys.
-- `api/src/main/java/ee/andevis/api/setting/payload/SettingDTO.java`: transport wrapper for key + enabled + typed options.
-- `api/src/main/java/ee/andevis/api/setting/payload/`: typed `options` payloads for selected keys.
+- `entity/Setting.java`: `_settings` table model.
+- `entity/SettingKey.java`: enum of general setting keys.
+- `entity/SettingKeyCode.java`: marker interface for domain-specific key enums.
+- `entity/SettingKeySpec.java`: immutable configuration holder (options class, parent dependency).
+- `entity/SettingGroup.java`: enum discriminator (`GENERAL`, `VACATIONS`).
+- `payload/SettingDTO.java`: transport wrapper for key + enabled + typed options.
 - `SettingTask`: periodic action based on `AUTO_ACTIVE_USERS`.
+
+### Leave Settings (`ee.andevis.api.settings.leave`)
+
+Base path: `api/src/main/java/ee/andevis/api/settings/leave/`
+
+- `controller/LeaveSettingsController`: `/settings/leave` endpoints.
+- `service/LeaveSettingsService`: leave-specific setting operations.
+- `service/LeaveValidationSettingsService`: legacy field-visibility validation settings.
+- `entity/LeaveSettingKey`: leave-specific setting keys enum (`group = VACATIONS`).
+- `payload/PlannedVacationsOptionDTO`: typed options for `PLANNED_VACATIONS`.
+- `payload/LeaveBeforeStartRestrictionOptionDTO`: typed options for `VACATION_BEFORE_START_RESTRICTION`.
+- `payload/LeaveTypePayload`: leave type summary DTO.
+- `payload/LeaveTypeDetailedPayload`: leave type detail DTO.
+- `payload/LeaveValidationSetting`: legacy validation setting DTO.
+
+### Deprecated (backward compatibility)
+
+The old `VacationSettingsController` at `/vacation_settings` is deprecated and delegates
+to `LeaveSettingsController`. Old services (`VacationSettingsService`, `VacationValidationSettingsService`)
+and entity (`VacationSettingKey`) are also deprecated — use the `settings.leave` equivalents.
+
+### Adding a New Settings Domain
+
+To add a new settings domain (e.g., absence, request):
+1. Create a new package `ee.andevis.api.settings.<domain>/` with controller, service, entity, payload.
+2. Create a key enum implementing `SettingKeyCode` with its own `SettingGroup` value.
+3. Add the new group to `SettingGroup` enum.
+4. Register REST endpoints at `/settings/<domain>`.
+No changes to existing domains or shared code are required.
 
 ## Data Model
 
@@ -40,48 +73,65 @@ Persistence notes:
 
 ## API Endpoints
 
-Base route: `/settings`
+### General Settings — `/settings`
 
 All controller methods require `isAuthenticated()`, and each route additionally requires `settings:manage`.
 
-- `GET /settings`
-  - returns all `SettingKey` values as DTOs for the company,
-  - missing keys are synthesized as disabled (`isEnabled=false`) with no DB row.
+- `GET /settings` — returns all `SettingKey` values as DTOs for the company. Missing keys are synthesized as disabled (`isEnabled=false`).
+- `GET /settings/{key}` — returns one mapped setting DTO, or `404`.
+- `PUT /settings` — upserts by `companyId + key`. Payload: `SettingDTO<?>`.
 
-- `GET /settings/{key}`
-  - returns one mapped setting DTO,
-  - returns `404` when no row exists for that key/company.
+### Leave Settings — `/settings/leave`
 
-- `PUT /settings`
-  - upserts by `companyId + key`,
-  - payload: `SettingDTO<?>` (`key` required, `isEnabled`, optional `options`),
-  - returns mapped DTO after save.
+All endpoints require `isAuthenticated()`. Most require `settings:manage`.
+
+- `GET /settings/leave` — returns all `LeaveSettingKey` values as DTOs. (`settings:manage`)
+- `PUT /settings/leave` — upserts a single leave setting. (`settings:manage`)
+- `GET /settings/leave/{key}` — returns one leave setting by key. (all authenticated)
+- `GET /settings/leave/types` — list all leave types. (`settings:manage`)
+- `GET /settings/leave/types/{id}` — get detailed leave type. (`settings:manage`)
+- `PUT /settings/leave/types/{id}` — update leave type. (`settings:manage`)
+- `PATCH /settings/leave/types/{id}?isActive=true|false` — toggle active status. (`settings:manage`)
+- `GET /settings/leave/validations` — get legacy field-visibility settings. (`settings:manage`)
+- `PUT /settings/leave/validations` — update legacy field-visibility settings. (`settings:manage`)
+
+### Deprecated — `/vacation_settings`
+
+All old endpoints under `/vacation_settings` still work but are deprecated.
+They delegate to the `/settings/leave` implementation. Clients should migrate to the new URLs.
 
 No delete endpoint is implemented.
 
-## Setting Keys (`SettingKey`)
+## Setting Keys
 
-Current enum:
-- `ABSENCES_MODULE`
-- `ABSENCE_NOTICE`
-- `ABSENCES_ENTRY_COMPANY`
+### General Keys (`SettingKey`, group: `GENERAL`)
+
+- `ABSENCES_MODULE`, `ABSENCE_NOTICE`, `ABSENCES_ENTRY_COMPANY`
 - `AUTO_ACTIVE_USERS`
-- `STOCK_MODULE`
-- `SURVEY_MODULE`
+- `STOCK_MODULE`, `SURVEY_MODULE`
 - `DELETE_BANK_ACCOUNT`
-- `CHANGE_CONFIRMED_VACATIONS`
-- `TIME_SHEETS`
-- `TIME_SHEET_TOTALS`
-- `VACATIONS_PARALLEL_STRUCTURES`
-- `PERSONAL_CAN_CONFIRM_APPLICATIONS`
-- `PERSONAL_CAN_CREATE_APPLICATIONS`
-- `VACATION_CALENDAR`
+- `TIME_SHEETS`, `TIME_SHEET_TOTALS`
+- `PERSONAL_CAN_CONFIRM_APPLICATIONS`, `PERSONAL_CAN_CREATE_APPLICATIONS`
 - `PROFILE_BOOKMARKS`
-- `CANDIDATES_MODULE`
-- `WITH_WAITING_VACATIONS`
-- `PLANNED_VACATIONS`
+- `CANDIDATES_MODULE` (typed options: `CandidateOptionDTO`)
 - `MANAGER_CAN_READ_SALARY`
-- `VACATION_BEFORE_START_RESTRICTION`
+
+### Leave Keys (`LeaveSettingKey`, group: `VACATIONS`)
+
+- `PLANNED_VACATIONS` (typed options: `PlannedVacationsOptionDTO`)
+- `VACATION_SCHEDULE_ACCESSIBLE`
+- `VIEW_COLLEAGUES_ACTUAL_VACATIONS`
+- `CHANGE_CONFIRMED_VACATIONS`
+- `HIDE_REJECTED_VACATIONS_IN_EMPLOYEE_CALENDAR`
+- `CANCEL_UNSTARTED_VACATION_AFTER_CONFIRMATION`
+- `CANCEL_VACATION_WITHOUT_CONFIRMATION` (parent: `CANCEL_UNSTARTED_VACATION_AFTER_CONFIRMATION`)
+- `WITH_WAITING_VACATIONS`
+- `VACATION_BEFORE_START_RESTRICTION` (typed options: `LeaveBeforeStartRestrictionOptionDTO`, default days=14)
+- `SYNC_CHANGES_AFTER_CONFIRMATION`
+- `VACATION_APPLICATIONS_REPORT`
+- `DELETE_CONFIRMED_VACATION`
+- `VACATION_CALENDAR`
+- `VACATIONS_PARALLEL_STRUCTURES`
 
 ## Typed Options Support
 
