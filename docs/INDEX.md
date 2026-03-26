@@ -12,6 +12,7 @@ Backend is a **Spring Boot 3 / Java 21** HR/workforce REST API (`ee.andevis.api`
 | [Vacation Module](./api/vacations/VACATIONS.md) | Employee vacation lifecycle — create/update/confirm/interrupt, calculation strategies, schedules |
 | [Profile Module](./api/profile/PROFILE.md) | Employee profiles, sub-records (children, education, bank, health), manager/deputy context, confirmation workflows |
 | [Settings Module](./api/settings/SETTINGS.md) | Company-level feature flags and typed options used as runtime toggles across all modules |
+| [Candidate Signing Module](./api/candidate/CANDIDATE_SIGNING.md) | Dokobit Gateway integration — contract signing workflow, container lifecycle, Kafka contract delivery |
 | [REST API Conventions](./api/REST_API_CONVENTIONS.md) | REST API naming and URL structure conventions for all endpoints |
 | [Translations](./api/translations/TRANSLATIONS.md) | Multi-language translation storage patterns, resolution utility, and guide for adding translations to new domains |
 | [File Storage Module](./api/storage/STORAGE.md) | Local-filesystem file storage — upload (single + chunked), MIME validation, thumbnails, domain join tables, security |
